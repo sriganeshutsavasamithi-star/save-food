@@ -1,4 +1,4 @@
-<html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -43,6 +43,20 @@
       line-height: 1.55;
       min-height: 100vh;
     }
+
+    /* ---------- Login ---------- */
+    #loginScreen {
+      position: fixed; inset: 0; z-index: 200;
+      display: flex; align-items: center; justify-content: center; padding: 16px;
+      background: linear-gradient(135deg, var(--green-900), var(--green-600));
+    }
+    .login-card {
+      background: #fff; border-radius: var(--radius); padding: 30px;
+      width: 100%; max-width: 400px; box-shadow: var(--shadow-lg); text-align: center;
+      animation: rise .5s ease both;
+    }
+    .login-card h2 { font-family: 'Fraunces', Georgia, serif; margin: 6px 0; font-size: 26px; }
+    .login-card label { text-align: left; }
 
     /* ---------- Hero ---------- */
     header {
@@ -162,12 +176,6 @@
     .role-card small { color: var(--muted); }
     #role { display: none; }
 
-    .notice {
-      margin: 16px 0 0; padding: 10px 14px;
-      background: var(--amber-bg); color: #8a5a10;
-      border-radius: 10px; font-size: 13px;
-    }
-
     /* ---------- Buttons ---------- */
     button {
       border: none; border-radius: 12px;
@@ -196,6 +204,7 @@
       transition: border-color .2s, box-shadow .2s;
     }
     input:focus, textarea:focus { border-color: var(--green-500); box-shadow: 0 0 0 4px rgba(47,166,115,.15); outline: none; }
+    input[readonly] { background: var(--green-50); color: var(--muted); }
     textarea { min-height: 96px; resize: vertical; }
 
     /* ---------- Donation cards ---------- */
@@ -275,7 +284,7 @@
     .empty button { margin-top: 16px; }
 
     /* ---------- Toast ---------- */
-    #toasts { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; flex-direction: column; gap: 10px; align-items: center; width: calc(100% - 28px); pointer-events: none; }
+    #toasts { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 300; display: flex; flex-direction: column; gap: 10px; align-items: center; width: calc(100% - 28px); pointer-events: none; }
     .toast {
       pointer-events: auto;
       background: var(--green-900); color: #fff;
@@ -305,6 +314,22 @@
   </style>
 </head>
 <body>
+
+  <!-- Login screen -->
+  <div id="loginScreen">
+    <form id="loginForm" class="login-card">
+      <div style="font-size:44px">🥬</div>
+      <h2>Welcome to Save Food</h2>
+      <p class="sub">Enter your details to continue</p>
+      <label for="userName">Your Name *</label>
+      <input id="userName" required minlength="2" placeholder="Enter your name" autocomplete="name">
+      <label for="userMobile">Mobile Number *</label>
+      <input id="userMobile" required type="tel" inputmode="numeric" maxlength="10"
+             placeholder="10-digit mobile number" autocomplete="tel">
+      <button type="submit" class="submit-btn">Login</button>
+    </form>
+  </div>
+
   <header>
     <div class="hero-inner">
       <div class="logo">🥬</div>
@@ -319,6 +344,7 @@
     <button data-page="available" onclick="showPage('available')">🛒 Available <span class="badge hidden" id="availBadge">0</span></button>
     <button data-page="tracking" onclick="showPage('tracking')">📍 Track</button>
     <button data-page="notifications" onclick="showPage('notifications')">🔔 Alerts <span class="badge hidden" id="notifBadge">0</span></button>
+    <button onclick="logout()">👤 <span id="userLabel"></span> · Logout</button>
   </nav>
 
   <main>
@@ -345,7 +371,6 @@
           <div class="role-card" tabindex="0" data-role="Volunteer"><span class="emoji">🚴</span><b>Volunteer</b><small>Pick up &amp; deliver</small></div>
           <div class="role-card" tabindex="0" data-role="Organization"><span class="emoji">🏠</span><b>Organization</b><small>Receive &amp; distribute</small></div>
         </div>
-      
       </div>
     </section>
 
@@ -373,7 +398,7 @@
             </div>
             <div>
               <label for="donor">Donor Name *</label>
-              <input id="donor" required placeholder="Enter donor name">
+              <input id="donor" required readonly placeholder="Enter donor name">
             </div>
             <div class="full">
               <label for="notes">Storage / Allergen Information</label>
@@ -419,10 +444,12 @@
     const KEY = "saveFoodDonations";
     const NOTIFY_KEY = "saveFoodNotifications";
     const READ_KEY = "saveFoodNotifRead";
+    const USER_KEY = "saveFoodUser";
 
     let donations = JSON.parse(localStorage.getItem(KEY) || "[]");
     let notifications = JSON.parse(localStorage.getItem(NOTIFY_KEY) || "[]");
     let readCount = Number(localStorage.getItem(READ_KEY) || 0);
+    let user = JSON.parse(localStorage.getItem(USER_KEY) || "null");
     let currentPage = "dashboard";
 
     function saveData() {
@@ -449,6 +476,37 @@
       }, 2800);
     }
 
+    /* ---------- Login ---------- */
+    function applyUser() {
+      document.getElementById("loginScreen").classList.toggle("hidden", !!user);
+      document.getElementById("userLabel").textContent = user ? user.name : "";
+      document.getElementById("donor").value = user ? user.name : "";
+    }
+
+    document.getElementById("loginForm").addEventListener("submit", e => {
+      e.preventDefault();
+      const name = document.getElementById("userName").value.trim();
+      const mobile = document.getElementById("userMobile").value.trim();
+      if (name.length < 2) { toast("Please enter your name.", "error"); return; }
+      if (!/^[6-9]\d{9}$/.test(mobile)) {
+        toast("Enter a valid 10-digit mobile number.", "error");
+        return;
+      }
+      user = { name, mobile };
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      applyUser();
+      showPage("dashboard");
+      toast("Welcome, " + name + "! 👋");
+    });
+
+    function logout() {
+      localStorage.removeItem(USER_KEY);
+      user = null;
+      document.getElementById("loginForm").reset();
+      applyUser();
+    }
+
+    /* ---------- Pages ---------- */
     function showPage(id) {
       currentPage = id;
       document.querySelectorAll(".page").forEach(p => p.classList.add("hidden"));
@@ -507,6 +565,7 @@
             <div class="meta"><span class="i">📍</span><div><span class="k">Pickup:</span> ${escapeHTML(d.location)}</div></div>
             <div class="meta"><span class="i">⏰</span><div><span class="k">Consume by:</span> ${escapeHTML(formatExpiry(d.expiry))}</div></div>
             <div class="meta"><span class="i">👤</span><div><span class="k">Donor:</span> ${escapeHTML(d.donor)}</div></div>
+            <div class="meta"><span class="i">📞</span><div><span class="k">Contact:</span> ${escapeHTML(d.donorMobile || "-")}</div></div>
             ${d.notes ? `<div class="note-box">⚠️ ${escapeHTML(d.notes)}</div>` : ""}
             <p style="margin:14px 0 0"><span class="status">${escapeHTML(d.status)}</span></p>
             <div class="actions">
@@ -527,8 +586,8 @@
             <div class="track-head">
               <div>
                 <h3 style="margin-bottom:4px">${escapeHTML(d.name)}</h3>
-                <div class="meta" style="margin:2px 0"><span class="i">👤</span><div><span class="k">Donor:</span> ${escapeHTML(d.donor)}</div></div>
-                <div class="meta" style="margin:2px 0"><span class="i">🚴</span><div><span class="k">Volunteer:</span> ${escapeHTML(d.volunteer || "Not assigned")}</div></div>
+                <div class="meta" style="margin:2px 0"><span class="i">👤</span><div><span class="k">Donor:</span> ${escapeHTML(d.donor)} ${d.donorMobile ? "· 📞 " + escapeHTML(d.donorMobile) : ""}</div></div>
+                <div class="meta" style="margin:2px 0"><span class="i">🚴</span><div><span class="k">Volunteer:</span> ${escapeHTML(d.volunteer || "Not assigned")} ${d.volunteerMobile ? "· 📞 " + escapeHTML(d.volunteerMobile) : ""}</div></div>
               </div>
               <span class="status ${statusClass(d.status)}">${escapeHTML(d.status)}</span>
             </div>
@@ -546,8 +605,8 @@
           </div>`;
 
       document.getElementById("notificationList").innerHTML =
-        notifications.length ? notifications.map((n, i) => `
-          <div class="note-item" ${i < notifications.length - readCount && currentPage !== "notifications" ? "" : ""}>
+        notifications.length ? notifications.map(n => `
+          <div class="note-item">
             <div class="bell">🔔</div>
             <div><p>${escapeHTML(n.message)}</p><small>${escapeHTML(n.time)}</small></div>
           </div>
@@ -563,6 +622,8 @@
 
     document.getElementById("donationForm").addEventListener("submit", event => {
       event.preventDefault();
+
+      if (!user) { applyUser(); return; }
 
       const expiry = document.getElementById("expiry").value;
       if (new Date(expiry).getTime() < Date.now()) {
@@ -580,16 +641,19 @@
         meals: Number.isFinite(number) ? Math.max(number, 0) : 0,
         location: document.getElementById("location").value.trim(),
         expiry,
-        donor: document.getElementById("donor").value.trim(),
+        donor: user.name,
+        donorMobile: user.mobile,
         notes: document.getElementById("notes").value.trim(),
         status: "Available",
-        volunteer: ""
+        volunteer: "",
+        volunteerMobile: ""
       };
 
       donations.push(donation);
       notify("New donation available: " + donation.name);
       saveData();
       event.target.reset();
+      applyUser();
       showPage("available");
       toast("🎉 Food donation published successfully!");
     });
@@ -606,8 +670,9 @@
       if (!donation || donation.status !== "Available") return;
 
       donation.status = "Accepted";
-      donation.volunteer = role;
-      notify("Pickup accepted for " + donation.name);
+      donation.volunteer = user.name + " (" + role + ")";
+      donation.volunteerMobile = user.mobile;
+      notify("Pickup accepted for " + donation.name + " by " + user.name);
       saveData();
       toast("Pickup accepted! 🚴");
     }
@@ -649,6 +714,7 @@
       saveData();
     });
 
+    applyUser();
     showPage("dashboard");
   </script>
 </body>
