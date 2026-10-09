@@ -1,8 +1,6 @@
-<html>
-<html lang="en"> 
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <body>
-    <script>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Save Food - Food Donation App</title>
@@ -422,15 +420,30 @@
     const NOTIFY_KEY = "saveFoodNotifications";
     const READ_KEY = "saveFoodNotifRead";
 
-    let donations = JSON.parse(localStorage.getItem(KEY) || "[]");
-    let notifications = JSON.parse(localStorage.getItem(NOTIFY_KEY) || "[]");
-    let readCount = Number(localStorage.getItem(READ_KEY) || 0);
+    // Safe storage helpers (storage can be blocked or contain bad JSON)
+    function load(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch (e) {
+        return fallback;
+      }
+    }
+    function store(key, value) {
+      try { localStorage.setItem(key, value); } catch (e) { /* ignore */ }
+    }
+
+    let donations = load(KEY, []);
+    let notifications = load(NOTIFY_KEY, []);
+    let readCount = Number(load(READ_KEY, 0)) || 0;
+    if (!Array.isArray(donations)) donations = [];
+    if (!Array.isArray(notifications)) notifications = [];
     let currentPage = "dashboard";
 
     function saveData() {
-      localStorage.setItem(KEY, JSON.stringify(donations));
-      localStorage.setItem(NOTIFY_KEY, JSON.stringify(notifications));
-      localStorage.setItem(READ_KEY, String(readCount));
+      store(KEY, JSON.stringify(donations));
+      store(NOTIFY_KEY, JSON.stringify(notifications));
+      store(READ_KEY, String(readCount));
       render();
     }
 
@@ -512,8 +525,8 @@
             ${d.notes ? `<div class="note-box">⚠️ ${escapeHTML(d.notes)}</div>` : ""}
             <p style="margin:14px 0 0"><span class="status">${escapeHTML(d.status)}</span></p>
             <div class="actions">
-              <button class="ghost" onclick="openMap('${d.id}')">🗺️ Open Map</button>
-              <button onclick="acceptDonation('${d.id}')">Accept Pickup</button>
+              <button class="ghost" onclick="openMap('${escapeHTML(d.id)}')">🗺️ Open Map</button>
+              <button onclick="acceptDonation('${escapeHTML(d.id)}')">Accept Pickup</button>
             </div>
           </div>
         `).join("") : `
@@ -537,8 +550,8 @@
             ${stepper(d.status)}
             ${d.status === "Accepted" || d.status === "Picked Up" ? `
               <div class="actions">
-                ${d.status === "Accepted" ? `<button onclick="updateStatus('${d.id}', 'Picked Up')">📦 Mark Picked Up</button>` : ""}
-                ${d.status === "Picked Up" ? `<button onclick="updateStatus('${d.id}', 'Delivered')">✅ Mark Delivered</button>` : ""}
+                ${d.status === "Accepted" ? `<button onclick="updateStatus('${escapeHTML(d.id)}', 'Picked Up')">📦 Mark Picked Up</button>` : ""}
+                ${d.status === "Picked Up" ? `<button onclick="updateStatus('${escapeHTML(d.id)}', 'Delivered')">✅ Mark Delivered</button>` : ""}
               </div>` : ""}
           </div>
         `).join("") : `
@@ -548,8 +561,8 @@
           </div>`;
 
       document.getElementById("notificationList").innerHTML =
-        notifications.length ? notifications.map((n, i) => `
-          <div class="note-item" ${i < notifications.length - readCount && currentPage !== "notifications" ? "" : ""}>
+        notifications.length ? notifications.map(n => `
+          <div class="note-item">
             <div class="bell">🔔</div>
             <div><p>${escapeHTML(n.message)}</p><small>${escapeHTML(n.time)}</small></div>
           </div>
